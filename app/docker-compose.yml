@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tinsmith
+      POSTGRES_USER: tinsmith
+      POSTGRES_PASSWORD: tinsmith_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./db/migrations:/docker-entrypoint-initdb.d/migrations
+      - ./db/seed:/docker-entrypoint-initdb.d/seed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tinsmith"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  next-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: start
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://tinsmith:tinsmith_dev@postgres:5432/tinsmith
+      JWT_SECRET: dev-secret-change-in-production
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

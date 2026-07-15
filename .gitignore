@@ -1,0 +1,37 @@
+# Large binary data files (equipment DB)
+Equipment_Data.mdb
+Equipment_Data.sqlite
+equipment_data.sql
+
+# Apple format originals (keep RTF/MD/PDF versions)
+*.numbers
+*.pages
+
+# Archives
+*.zip
+
+# OS
+.DS_Store
+
+# Env (allow .example templates)
+.env*
+!.env*.example
+
+# Node (app subdirectory has its own gitignore)
+node_modules/
+
+# Editor
+*~
+\#*\#
+.#*
+/calc-engine/__pycache__/
+/.agent-shell/
+etl/.venv/
+etl/__pycache__/
+
+# Client-specific artifacts (archived locally, not in repo)
+*.pdf
+mockup/
+mockup-mvp2/
+MVP/
+.dual-graph/
