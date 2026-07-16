@@ -8,7 +8,7 @@
 
 ## Part 1: Unguided first impression (5 min)
 
-Hand him the phone with https://tinsmith.fly.dev/ loaded. Say nothing except "tell me what you think this is and try it out."
+Hand him the phone with https://hvac3.fly.dev/ loaded. Say nothing except "tell me what you think this is and try it out."
 
 - [ ] Does he understand what the page is without explanation?
 - [ ] Does he get through the wizard without asking for help?
