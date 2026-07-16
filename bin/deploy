@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# deploy — ship the current main to Fly.io (hvac3.fly.dev).
+#
+# The dev box has no flyctl and no browser; the actual deploy runs in GitHub
+# Actions, which holds the Fly token. This verb triggers that CI deploy from the
+# terminal and tails it, so deploying is one command, not a remembered sequence.
+#
+# One-time setup (the only step that needs Fly credentials — mint once, then
+# never again):
+#   flyctl tokens create deploy -a hvac3 | gh secret set FLY_API_TOKEN -R ahonnecke/tinsmith
+#
+# After that: `npm run deploy` (from app/) or `bin/deploy`.
+set -euo pipefail
+
+REPO="ahonnecke/tinsmith"
+BRANCH="main"
+WORKFLOW="ci.yml"
+
+echo "→ triggering deploy: ${REPO}@${BRANCH}"
+gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$BRANCH"
+
+# Let GitHub register the run before we look for it.
+for _ in 1 2 3 4 5; do
+  sleep 2
+  RUN_ID="$(gh run list --repo "$REPO" --workflow "$WORKFLOW" --branch "$BRANCH" \
+    --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+  [ -n "${RUN_ID:-}" ] && break
+done
+
+if [ -z "${RUN_ID:-}" ]; then
+  echo "  (run started; watch it: gh run list --repo ${REPO})"
+  exit 0
+fi
+
+echo "→ watching https://github.com/${REPO}/actions/runs/${RUN_ID}"
+gh run watch "$RUN_ID" --repo "$REPO" --exit-status
+
+echo "→ smoke test"
+curl -fsS https://hvac3.fly.dev/api/health && echo

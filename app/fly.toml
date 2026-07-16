@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'tinsmith'
+app = 'hvac3'
 primary_region = 'iad'
 
 [build]
