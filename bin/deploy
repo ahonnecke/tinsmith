@@ -1,40 +1,27 @@
 #!/usr/bin/env bash
 #
-# deploy — ship the current main to Fly.io (hvac3.fly.dev).
+# deploy — ship the current app to Fly.io (hvac3.fly.dev). One command.
 #
-# The dev box has no flyctl and no browser; the actual deploy runs in GitHub
-# Actions, which holds the Fly token. This verb triggers that CI deploy from the
-# terminal and tails it, so deploying is one command, not a remembered sequence.
+# Finds flyctl even if it isn't on PATH, logs you in if you aren't, builds on
+# Fly's remote builders (no local Docker), then smoke-tests. The release step
+# runs db/migrate.mjs (which also corrects the demo-login email).
 #
-# One-time setup (the only step that needs Fly credentials — mint once, then
-# never again):
-#   flyctl tokens create deploy -a hvac3 | gh secret set FLY_API_TOKEN -R ahonnecke/tinsmith
-#
-# After that: `npm run deploy` (from app/) or `bin/deploy`.
+#   npm run deploy      (from app/)      —or—      bin/deploy
 set -euo pipefail
 
-REPO="ahonnecke/tinsmith"
-BRANCH="main"
-WORKFLOW="ci.yml"
+FLY="$(command -v flyctl || true)"
+[ -n "$FLY" ] || FLY="$HOME/.fly/bin/flyctl"
+[ -x "$FLY" ] || { echo "flyctl not installed. Once: curl -L https://fly.io/install.sh | sh"; exit 1; }
 
-echo "→ triggering deploy: ${REPO}@${BRANCH}"
-gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$BRANCH"
-
-# Let GitHub register the run before we look for it.
-for _ in 1 2 3 4 5; do
-  sleep 2
-  RUN_ID="$(gh run list --repo "$REPO" --workflow "$WORKFLOW" --branch "$BRANCH" \
-    --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
-  [ -n "${RUN_ID:-}" ] && break
-done
-
-if [ -z "${RUN_ID:-}" ]; then
-  echo "  (run started; watch it: gh run list --repo ${REPO})"
-  exit 0
+if ! "$FLY" auth whoami >/dev/null 2>&1; then
+  echo "→ logging in to Fly (authorize the URL it prints — a phone browser is fine)"
+  "$FLY" auth login
 fi
 
-echo "→ watching https://github.com/${REPO}/actions/runs/${RUN_ID}"
-gh run watch "$RUN_ID" --repo "$REPO" --exit-status
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/app"
+echo "→ deploying to hvac3.fly.dev (remote build)…"
+"$FLY" deploy --remote-only
 
-echo "→ smoke test"
-curl -fsS https://hvac3.fly.dev/api/health && echo
+echo "→ health:"
+curl -fsS https://hvac3.fly.dev/api/health && echo || echo "(not green yet — retry in a few seconds)"
